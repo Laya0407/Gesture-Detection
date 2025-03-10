@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Touchless Interaction Demo</title>
+    <style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        background-color: #f9f9f9;
+    }
+    
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    header {
+        background-color: #2c3e50;
+        color: white;
+        padding: 20px 0;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    h1 {
+        margin: 0;
+        font-size: 2.5rem;
+    }
+    
+    #status {
+        margin: 10px 0;
+        padding: 8px;
+        font-weight: bold;
+        background-color: #f0f0f0;
+        border-radius: 4px;
+    }
+    
+    .setup-section {
+        background-color: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+    }
+    
+    button {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.2s;
+    }
+    
+    button:hover {
+        background-color: #2980b9;
+    }
+    
+    button:disabled {
+        background-color: #bdc3c7;
+        cursor: not-allowed;
+    }
+    
+    .status {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    
+    .connected {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .disconnected {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+    
+    #media-container {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+    
+    .video-container {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .video-box {
+        background-color: white;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-width: 100%;
+        text-align: center;
+    }
+    
+    video {
+        width: 640px;
+        max-width: 100%;
+        height: auto;
+        background-color: #000;
+        border-radius: 4px;
+        border: 2px solid #333;
+        transform: scaleX(-1);
+    }
+    
+    .hand-visualization {
+        width: 320px;
+        height: 240px;
+        background-color: #333;
+        border-radius: 4px;
+        position: relative;
+    }
+    
+    #status-overlay {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 14px;
+        z-index: 100;
+    }
+    
+    #gesture-box {
+        position: absolute;
+        pointer-events: none;
+        border: 3px solid green;
+        z-index: 45;
+    }
+
+    #initialization-progress {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-size: 16px;
+        z-index: 200;
+        text-align: center;
+        display: none;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 10px;
+        background-color: #444;
+        border-radius: 5px;
+        margin-top: 10px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background-color: #4CAF50;
+        width: 0%;
+        transition: width 0.5s;
+    }
+    
+    .gesture-demo-area {
+        background-color: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .gesture-card {
+        border: 1px solid #e1e1e1;
+        border-radius: 6px;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .gesture-icon {
+        width: 80px;
+        height: 80px;
+        background-color: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        margin-right: 20px;
+        border-radius: 50%;
+    }
+    
+    .gesture-content h3 {
+        margin-top: 0;
+        color: #2c3e50;
+    }
+    
+    .gesture-content p {
+        margin-bottom: 0;
+        color: #7f8c8d;
+    }
+    
+    .interactive-element {
+        padding: 20px;
+        margin-top: 30px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    
+    .btn-row {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .demo-btn {
+        padding: 15px 30px;
+        font-size: 1.2rem;
+    }
+    
+    .gesture-status {
+        margin-top: 20px;
+        font-weight: 500;
+    }
+    
+    /* Fingertip visualization markers */
+    .fingertip {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-left: -5px;
+        margin-top: -5px;
+        pointer-events: none;
+        z-index: 50;
+    }
+    
+    .thumb-tip { background-color: #ff9933; }
+    .index-tip { background-color: #33cc33; }
+    .middle-tip { background-color: #3399ff; }
+    .ring-tip { background-color: #9966ff; }
+    .pinky-tip { background-color: #ff66cc; }
+    
+    /* Scrollable section for testing swipe gestures */
+    .scroll-section {
+        height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e1e1e1;
+        padding: 15px;
+        margin-top: Å20px;
+        border-radius: 4px;
+    }
+    
+    .scroll-section p {
+        margin-bottom: 15px;
+    }
+    
+    /* Zoom container for testing pinch-to-zoom */
+    .zoom-container {
+        margin-top: 20px;
+        border: 1px solid #e1e1e1;
+        padding: 15px;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .zoom-container img {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    #cursor {
+        position: fixed;
+        width: 20px;
+        height: 20px;
+        background-color: rgba(75, 161, 255, 0.7);
+        border: 2px solid white;
+        border-radius: 50%;
+        margin-left: -10px;
+        margin-top: -10px;
+        pointer-events: none;
+        z-index: 9999;
+        transition: all 0.05s ease;
+        box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    }
+    
+    #cursor.pinching {
+        background-color: yellow;
+        transform: scale(0.8);
+    }
+    
+    /* Feedback indicators */
+    .touchless-feedback-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 10000;
+        pointer-events: none;
+    }
+    
+    .touchless-feedback {
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 20px;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    #fingertips-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+    
+    .action-button {
+        display: inline-block;
+        margin: 10px;
+        padding: 15px 30px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .action-button:hover {
+        background-color: #45a049;
+    }
+    
+    .action-button.active {
+        transform: scale(0.95);
+        background-color: #ff5722;
+    }
+    
+    .action-button.toggled {
+        background-color: #2196F3;
+    }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Touchless Interaction System</h1>
+            <p>Control your computer using hand gestures</p>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="setup-section">
+            <h2>Setup Webcam Connection</h2>
+            <p>Connect your webcam to begin touchless interaction.</p>
+            <button id="start-button">Start Camera</button>
+            <div id="connection-status" class="status disconnected">
+                Not connected. Click "Start Camera" to begin.
+            </div>
+        </div>
+        
+        <div id="status">Starting gesture detection...</div>
+
+        <div class="video-container">
+            <div class="video-box">
+                <h3>Your Camera Feed</h3>
+                <div id="media-container">
+                    <video id="video" autoplay playsinline muted></video>
+                    <div id="status-overlay">Connecting...</div>
+                    <div id="gesture-box"></div>
+                    <div id="fingertips-container"></div>
+                    <div id="initialization-progress">
+                        <div>Initializing Camera and Gesture Detection</div>
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill"></div>
+                        </div>
+                        <div class="progress-text">Please wait (0%)...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="video-box">
+                <h3>Hand Tracking Visualization</h3>
+                <div id="hand-visualization" class="hand-visualization"></div>
+            </div>
+        </div>
+        
+        <div class="gesture-demo-area">
+            <h2>Supported Gestures</h2>
+            
+            <div class="gesture-card">
+                <div class="gesture-icon">👌</div>
+                <div class="gesture-content">
+                    <h3>Pinch</h3>
+                    <p>Pinch your thumb and index finger together to click</p>
+                </div>
+            </div>
+            
+            <div class="gesture-card">
+                <div class="gesture-icon">✋</div>
+                <div class="gesture-content">
+                    <h3>Swipe</h3>
+                    <p>Move your hand quickly in a direction to scroll</p>
+                </div>
+            </div>
+            
+            <div class="gesture-card">
+                <div class="gesture-icon">🖐️</div>
+                <div class="gesture-content">
+                    <h3>Finger Spread</h3>
+                    <p>Spread your fingers apart to zoom in</p>
+                </div>
+            </div>
+            
+            <div class="gesture-card">
+                <div class="gesture-icon">✊</div>
+                <div class="gesture-content">
+                    <h3>Fist</h3>
+                    <p>Make a fist to drag/scroll content</p>
+                </div>
+            </div>
+            
+            <div class="gesture-card">
+                <div class="gesture-icon">☝️</div>
+                <div class="gesture-content">
+                    <h3>Hover Hold</h3>
+                    <p>Hold your finger still to hover and highlight elements</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="interactive-element">
+            <div id="gesture-status" class="gesture-status">
+                No gesture detected yet
+            </div>
+        </div>
+    </div>
+    
+    <div id="cursor"></div>
+
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM elements
+        const startButton = document.getElementById('start-button');
+        const videoElement = document.getElementById('video');
+        const connectionStatus = document.getElementById('connection-status');
+        const statusOverlay = document.getElementById('status-overlay');
+        const statusText = document.getElementById('status');
+        const handVisualization = document.getElementById('hand-visualization');
+        const gestureBox = document.getElementById('gesture-box');
+        const initializationProgress = document.getElementById('initialization-progress');
+        const progressBarFill = document.querySelector('.progress-bar-fill');
+        const progressText = document.querySelector('.progress-text');
+        const fingertipsContainer = document.getElementById('fingertips-container');
+        const gestureStatus = document.getElementById('gesture-status');
+        const actionButtons = document.querySelectorAll('.action-button');
+        const cursorElement = document.getElementById('cursor');
+        
+        // State variables
+        let peerConnection;
+        let dataChannel;
+        let localStream;
+        let clientId = 'client-' + Math.random().toString(36).substr(2, 9);
+        let lastCursorX = null;
+        let lastCursorY = null;
+        let isDragging = false;
+        let zoomLevel = 1.0;
+        let isZooming = false;
+        
+        // Feedback elements
+        const feedbackElements = {};
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.className = 'touchless-feedback-container';
+        document.body.appendChild(feedbackContainer);
+        
+        // Create feedback indicators for each gesture
+        const gestures = ['pinch', 'swipe', 'hover', 'fingerSpread', 'fist'];
+        gestures.forEach(gesture => {
+            const element = document.createElement('div');
+            element.className = `touchless-feedback ${gesture}`;
+            element.innerText = gesture.charAt(0).toUpperCase() + gesture.slice(1);
+            feedbackContainer.appendChild(element);
+            feedbackElements[gesture] = element;
+        });
+        
+        // Add swipe direction indicator
+        feedbackElements.swipeDirection = document.createElement('div');
+        feedbackElements.swipeDirection.className = 'touchless-feedback swipe-direction';
+        feedbackElements.swipeDirection.style.position = 'fixed';
+        feedbackElements.swipeDirection.style.top = '50%';
+        feedbackElements.swipeDirection.style.left = '50%';
+        feedbackElements.swipeDirection.style.transform = 'translate(-50%, -50%)';
+        feedbackElements.swipeDirection.style.fontSize = '36px';
+        document.body.appendChild(feedbackElements.swipeDirection);
+        
+        // Update client dimensions
+        function updateClientDimensions() {
+            return {
+                clientId: clientId,
+                screenWidth: window.innerWidth,
+                screenHeight: window.innerHeight,
+                videoWidth: videoElement.videoWidth || 640,
+                videoHeight: videoElement.videoHeight || 480
+            };
+        }
+        
+        // Configure WebRTC connection
+        async function setupWebRTC() {
+            try {
+                // Create peer connection
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                // Add local stream tracks to peer connection
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+                
+                // Create data channel
+                dataChannel = peerConnection.createDataChannel('gestures');
+                dataChannel.onopen = handleDataChannelOpen;
+                dataChannel.onclose = handleDataChannelClose;
+                dataChannel.onmessage = handleDataChannelMessage;
+                
+                // Create and send offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                // Get client dimensions
+                const dimensions = updateClientDimensions();
+                
+                // Send offer to server
+                const response = await fetch('/offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sdp: peerConnection.localDescription.sdp,
+                        type: peerConnection.localDescription.type,
+                        clientId: dimensions.clientId,
+                        screenWidth: dimensions.screenWidth,
+                        screenHeight: dimensions.screenHeight,
+                        videoWidth: dimensions.videoWidth,
+                        videoHeight: dimensions.videoHeight
+                    })
+                });
+                
+                // Handle server response
+                const answer = await response.json();
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                
+                // Update connection status
+                statusOverlay.textContent = 'Connected. Initializing hand tracking...';
+                
+                // Log connection success
+                console.log('WebRTC connection established');
+                
+            } catch (error) {
+                console.error('Error setting up WebRTC:', error);
+                statusOverlay.textContent = 'Connection error. Please try again.';
+                connectionStatus.className = 'status disconnected';
+                connectionStatus.textContent = 'Connection failed. ' + error.message;
+            }
+        }
+        
+        // Handle data channel open
+        function handleDataChannelOpen() {
+            connectionStatus.className = 'status connected';
+            connectionStatus.textContent = 'Connected to gesture recognition server.';
+            statusOverlay.textContent = 'Hand tracking active';
+            
+            // Send updated client dimensions when data channel opens
+            if (dataChannel.readyState === 'open') {
+                fetch('/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateClientDimensions())
+                });
+            }
+        }
+        
+        // Handle data channel close
+        function handleDataChannelClose() {
+            connectionStatus.className = 'status disconnected';
+            connectionStatus.textContent = 'Disconnected from server.';
+            statusOverlay.textContent = 'Connection lost';
+        }
+        
+        // Update cursor position
+        function updateCursor(x, y) {
+            if (x === null || y === null) {
+                // Hide cursor when no position data
+                cursorElement.style.display = 'none';
+                return;
+            }
+            
+            // Show and position cursor
+            cursorElement.style.display = 'block';
+            cursorElement.style.left = `${x}px`;
+            cursorElement.style.top = `${y}px`;
+            
+            // Store position for calculations
+            lastCursorX = x;
+            lastCursorY = y;
+        }
+        
+        // Handle pinch gesture
+        function handlePinch(isPinching) {
+            feedbackElements.pinch.style.opacity = isPinching ? '1' : '0';
+            
+            if (isPinching) {
+                // Simulate click at cursor position
+                cursorElement.style.transform = 'translate(-50%, -50%) scale(0.7)';
+                cursorElement.style.backgroundColor = 'rgba(255, 105, 80, 0.8)';
+                
+                // Trigger click event at cursor position
+                if (lastCursorX !== null && lastCursorY !== null) {
+                    const element = document.elementFromPoint(lastCursorX, lastCursorY);
+                    if (element && element !== cursorElement) {
+                        element.click();
+                    }
+                }
+            } else {
+                cursorElement.style.transform = 'translate(-50%, -50%) scale(1)';
+                cursorElement.style.backgroundColor = 'rgba(75, 161, 255, 0.7)';
+            }
+        }
+        
+        // Handle swipe gesture
+        function handleSwipe(swipeData) {
+            if (!swipeData || !swipeData.active) {
+                feedbackElements.swipe.style.opacity = '0';
+                feedbackElements.swipeDirection.style.opacity = '0';
+                return;
+            }
+            
+            feedbackElements.swipe.style.opacity = '1';
+            
+            // Show swipe direction arrow
+            feedbackElements.swipeDirection.style.opacity = '1';
+            
+            const directionArrows = {
+                up: '↑',
+                down: '↓',
+                left: '←',
+                right: '→'
+            };
+            
+            feedbackElements.swipeDirection.textContent = directionArrows[swipeData.direction] || '';
+            
+            // Hide direction indicator after a delay
+            setTimeout(() => {
+                feedbackElements.swipeDirection.style.opacity = '0';
+            }, 800);
+            
+            // Perform scroll action
+            const scrollAmount = 75; // Increase for swipes
+            
+            switch (swipeData.direction) {
+                case 'up':
+                    window.scrollBy(0, -scrollAmount);
+                    break;
+                case 'down':
+                    window.scrollBy(0, scrollAmount);
+                    break;
+                case 'left':
+                    window.scrollBy(-scrollAmount, 0);
+                    break;
+                case 'right':
+                    window.scrollBy(scrollAmount, 0);
+                    break;
+            }
+        }
+        
+        // Handle hover gesture
+        function handleHover(hoverData) {
+            if (!hoverData || !hoverData.active) {
+                feedbackElements.hover.style.opacity = '0';
+                return;
+            }
+            
+            feedbackElements.hover.style.opacity = '1';
+            feedbackElements.hover.textContent = `Hover (${hoverData.duration.toFixed(1)}s)`;
+            
+            // Highlight element under cursor during hover
+            if (lastCursorX !== null && lastCursorY !== null) {
+                const element = document.elementFromPoint(lastCursorX, lastCursorY);
+                if (element && element !== cursorElement) {
+                    // Add hover effect
+                    element.style.transition = 'box-shadow 0.3s ease';
+                    element.style.boxShadow = '0 0 10px rgba(75, 161, 255, 0.7)';
+                    
+                    // Reset after hover ends
+                    if (!hoverData.active) {
+                        element.style.boxShadow = '';
+                    }
+                }
+            }
+        }
+        
+        // Handle finger spread gesture (zoom)
+        function handleFingerSpread(isSpread) {
+            feedbackElements.fingerSpread.style.opacity = isSpread ? '1' : '0';
+            
+            if (isSpread) {
+                // Zoom in gradually
+                zoomLevel += 0.05;
+                zoomLevel = Math.min(zoomLevel, 2.0); // Limit max zoom
+                
+                // Apply zoom transformation to page
+                document.body.style.transform = `scale(${zoomLevel})`;
+                document.body.style.transformOrigin = 'center center';
+                
+                isZooming = true;
+            } else if (isZooming) {
+                // Start zooming out when gesture ends
+                zoomLevel -= 0.05;
+                
+                // Reset zoom when reaching normal level
+                if (zoomLevel <= 1.0) {
+                    zoomLevel = 1.0;
+                    document.body.style.transform = '';
+                    isZooming = false;
+                } else {
+                    document.body.style.transform = `scale(${zoomLevel})`;
+                }
+            }
+        }
+        
+        // Handle fist gesture (drag)
+        function handleFist(isFist, cursorX, cursorY) {
+            feedbackElements.fist.style.opacity = isFist ? '1' : '0';
+            
+            // Update cursor appearance for drag
+            if (isFist) {
+                cursorElement.style.backgroundColor = 'rgba(255, 195, 0, 0.8)';
+                cursorElement.style.transform = 'translate(-50%, -50%) scale(1.2)';
+            } else {
+                cursorElement.style.backgroundColor = 'rgba(75, 161, 255, 0.7)';
+                cursorElement.style.transform = 'translate(-50%, -50%) scale(1)';
+            }
+            
+            // Perform drag operation
+            if (isFist && cursorX !== null && cursorY !== null) {
+                // Start drag if not already dragging
+                if (!isDragging) {
+                    isDragging = true;
+                    dragStartX = cursorX;
+                    dragStartY = cursorY;
+                    dragStartScrollX = window.scrollX;
+                    dragStartScrollY = window.scrollY;
+                }
+                
+                // Calculate drag distance
+                const deltaX = dragStartX - cursorX;
+                const deltaY = dragStartY - cursorY;
+                
+                // Scroll the page based on drag
+                window.scrollTo(
+                    dragStartScrollX + deltaX,
+                    dragStartScrollY + deltaY
+                );
+            } else {
+                // End drag
+                isDragging = false;
+            }
+        }
+        
+        // Render hand visualization
+        function renderHandVisualization(handData) {
+            if (!handData) {
+                return;
+            }
+            
+            // Check for handSkeleton in enhanced format
+            const handSkeleton = handData.handSkeleton;
+            if (handSkeleton) {
+                const { landmarks, connections } = handSkeleton;
+                if (!landmarks || landmarks.length === 0) {
+                    handVisualization.innerHTML = '';
+                    return;
+                }
+                
+                // Create SVG for hand visualization
+                const svgNS = "http://www.w3.org/2000/svg";
+                const svg = document.createElementNS(svgNS, "svg");
+                svg.setAttribute("width", "100%");
+                svg.setAttribute("height", "100%");
+                svg.setAttribute("viewBox", "0 0 640 480");
+                
+                // Draw connections first (the "bones")
+                connections.forEach(([i, j]) => {
+                    const startPoint = landmarks.find(lm => lm.id === i);
+                    const endPoint = landmarks.find(lm => lm.id === j);
+                    
+                    if (startPoint && endPoint) {
+                        const line = document.createElementNS(svgNS, "line");
+                        line.setAttribute("x1", startPoint.x);
+                        line.setAttribute("y1", startPoint.y);
+                        line.setAttribute("x2", endPoint.x);
+                        line.setAttribute("y2", endPoint.y);
+                        line.setAttribute("stroke", "rgba(255, 255, 255, 0.7)");
+                        line.setAttribute("stroke-width", "2");
+                        svg.appendChild(line);
+                    }
+                });
+                
+                // Draw landmarks (the "joints")
+                landmarks.forEach(lm => {
+                    const circle = document.createElementNS(svgNS, "circle");
+                    circle.setAttribute("cx", lm.x);
+                    circle.setAttribute("cy", lm.y);
+                    circle.setAttribute("r", lm.id === 8 ? "6" : "4"); // Make index finger tip larger
+                    
+                    // Color fingertips differently
+                    if ([4, 8, 12, 16, 20].includes(lm.id)) {
+                        circle.setAttribute("fill", "rgba(75, 161, 255, 0.9)");
+                    } else {
+                        circle.setAttribute("fill", "rgba(255, 255, 255, 0.9)");
+                    }
+                    
+                    svg.appendChild(circle);
+                });
+                
+                // Replace current visualization
+                handVisualization.innerHTML = '';
+                handVisualization.appendChild(svg);
+                return;
+            }
+            
+            // Support for legacy format with fingertips
+            if (handData.fingertips && Array.isArray(handData.fingertips)) {
+                // Create SVG for simple fingertip visualization
+                const svgNS = "http://www.w3.org/2000/svg";
+                const svg = document.createElementNS(svgNS, "svg");
+                svg.setAttribute("width", "100%");
+                svg.setAttribute("height", "100%");
+                svg.setAttribute("viewBox", "0 0 640 480");
+                
+                // Draw fingertips
+                const colors = [
+                    "rgba(255, 153, 51, 0.9)", // thumb
+                    "rgba(51, 204, 51, 0.9)",  // index
+                    "rgba(51, 153, 255, 0.9)", // middle
+                    "rgba(153, 102, 255, 0.9)", // ring
+                    "rgba(255, 102, 204, 0.9)"  // pinky
+                ];
+                
+                handData.fingertips.forEach((tip, i) => {
+                    if (tip && tip.x && tip.y) {
+                        const circle = document.createElementNS(svgNS, "circle");
+                        circle.setAttribute("cx", tip.x);
+                        circle.setAttribute("cy", tip.y);
+                        circle.setAttribute("r", i === 1 ? "8" : "6"); // Make index finger larger
+                        circle.setAttribute("fill", colors[i] || "white");
+                        svg.appendChild(circle);
+                    }
+                });
+                
+                // Replace current visualization
+                handVisualization.innerHTML = '';
+                handVisualization.appendChild(svg);
+            }
+        }
+        
+        // Process gesture data
+        function processGestureData(data) {
+            console.log('Processing gesture data:', data);
+            
+            if (!data) return;
+            
+            // Update cursor position
+            updateCursor(data.cursorX, data.cursorY);
+            
+            // Process hand visibility
+            if (!data.handVisible) {
+                // Hide all feedback when hand not visible
+                Object.values(feedbackElements).forEach(el => {
+                    el.style.opacity = '0';
+                });
+                
+                // Update status text
+                statusText.textContent = 'No hand detected. Place your hand in view of the camera.';
+                return;
+            }
+            
+            // Update status text
+            statusText.textContent = data.gestureDetected ? 
+                'Hand detected. Gesture recognized.' : 
+                'Hand detected. Move your hand to interact.';
+            
+            // Process all gestures
+            if (data.gestures) {
+                handlePinch(data.gestures.pinch);
+                handleSwipe(data.gestures.swipe);
+                handleHover(data.gestures.hover);
+                handleFingerSpread(data.gestures.fingerSpread);
+                handleFist(data.gestures.fist, data.cursorX, data.cursorY);
+                
+                // Update gesture status text
+                let detectedGesture = 'None';
+                
+                if (data.gestures.pinch) detectedGesture = 'Pinch';
+                else if (data.gestures.swipe && data.gestures.swipe.active) 
+                    detectedGesture = `Swipe ${data.gestures.swipe.direction}`;
+                else if (data.gestures.hover && data.gestures.hover.active) 
+                    detectedGesture = `Hover (${data.gestures.hover.duration.toFixed(1)}s)`;
+                else if (data.gestures.fingerSpread) detectedGesture = 'Finger Spread';
+                else if (data.gestures.fist) detectedGesture = 'Fist';
+                
+                if (gestureStatus) {
+                    gestureStatus.textContent = `Detected gesture: ${detectedGesture}`;
+                }
+                
+                // Highlight action buttons for demo
+                if (data.gestures.pinch && data.cursorX !== null && data.cursorY !== null) {
+                    const element = document.elementFromPoint(data.cursorX, data.cursorY);
+                    if (element && element.classList.contains('action-button')) {
+                        element.classList.add('active');
+                        setTimeout(() => {
+                            element.classList.remove('active');
+                        }, 300);
+                    }
+                }
+            } else if (data.pinchStatus !== undefined) {
+                // Handle legacy data format
+                handlePinch(data.pinchStatus);
+            }
+            
+            // Apply direct actions from server
+            if (data.action) {
+                switch (data.action.type) {
+                    case 'scroll':
+                        // Server-side scroll action
+                        window.scrollBy(
+                            data.action.direction === 'left' || data.action.direction === 'right' 
+                              ? (data.action.direction === 'left' ? -data.action.amount : data.action.amount) 
+                              : 0,
+                            data.action.direction === 'up' || data.action.direction === 'down'
+                              ? (data.action.direction === 'up' ? -data.action.amount : data.action.amount)
+                              : 0
+                        );
+                        break;
+                }
+            }
+            
+            // Update hand visualization
+            renderHandVisualization(data);
+        }
+        
+        // Handle data channel messages (gesture data)
+        function handleDataChannelMessage(event) {
+            try {
+                const data = JSON.parse(event.data);
+                processGestureData(data);
+            } catch (error) {
+                console.error('Error processing gesture data:', error);
+            }
+            // Add to the handleDataChannelMessage function
+            if (data.action && data.action.type === "print") {
+              console.log("Print action triggered");
+               window.print();
+            }
+        }
+        
+        // Initialize camera and setup
+        async function startCamera() {
+            try {
+                // Update UI
+                startButton.disabled = true;
+                statusText.textContent = 'Requesting camera access...';
+                connectionStatus.textContent = 'Connecting...';
+                
+                // Show progress indicator
+                initializationProgress.style.display = 'block';
+                updateProgressBar(10, 'Accessing camera...');
+                
+                // Get user media
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    }
+                });
+                
+                // Update progress
+                updateProgressBar(30, 'Camera access granted');
+                
+                // Set video source
+                videoElement.srcObject = localStream;
+                
+                // Wait for video to start playing
+                await new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => {
+                        updateProgressBar(50, 'Video feed initialized');
+                        resolve();
+                    };
+                });
+                
+                // Update progress
+                updateProgressBar(70, 'Setting up connection...');
+                
+                // Setup WebRTC connection
+                await setupWebRTC();
+                
+                // Final progress update
+                updateProgressBar(100, 'Ready!');
+                setTimeout(() => {
+                    initializationProgress.style.display = 'none';
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error starting camera:', error);
+                statusText.textContent = 'Camera access error: ' + error.message;
+                connectionStatus.className = 'status disconnected';
+                connectionStatus.textContent = 'Camera access denied. Please allow camera access and try again.';
+                startButton.disabled = false;
+                
+                // Update progress for error
+                updateProgressBar(0, 'Error: ' + error.message);
+                setTimeout(() => {
+                    initializationProgress.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        // Update progress bar
+        function updateProgressBar(percent, message) {
+            progressBarFill.style.width = percent + '%';
+            progressText.textContent = message || `Please wait (${percent}%)...`;
+        }
+        
+        // Window resize handler
+        function handleResize() {
+            // Send updated dimensions to server
+            if (dataChannel && dataChannel.readyState === 'open') {
+                fetch('/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateClientDimensions())
+                });
+            }
+        }
+        
+        // Add event listeners
+        startButton.addEventListener('click', startCamera);
+        window.addEventListener('resize', handleResize);
+        
+        // Reset drag state on page events
+        window.addEventListener('mousedown', () => {
+            isDragging = false;
+        });
+        
+        // Reset zoom on reload
+        window.addEventListener('beforeunload', () => {
+            document.body.style.transform = '';
+        });
+        
+        // Make action buttons interactive for demo
+        actionButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                this.classList.add('active');
+                setTimeout(() => {
+                    this.classList.remove('active');
+                }, 300);
+            });
+        });
+    });
+    </script>
+</body>
+</html>
