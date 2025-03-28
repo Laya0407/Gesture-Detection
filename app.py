@@ -9,10 +9,10 @@ import cv2
 import mediapipe as mp
 import weakref
 import base64
-from io import BytesIO
 import os
+from io import BytesIO
+
 from aiohttp import web
-from dotenv import load_dotenv
 import aiohttp
 
 """
@@ -25,50 +25,6 @@ WebSocket-based Touchless Interaction System:
 5. Interaction Feedback Service - Provides visual feedback to the client
 """
 
-def load_config():
-    """
-    Load configuration from environment variables or .env file
-    
-    Returns:
-        dict: Configuration dictionary with all settings
-    """
-    load_dotenv()
-    
-    # Create configuration dictionary
-    config = {
-        # Server Configuration
-        "server": {
-            "host": os.getenv("SERVER_HOST", "0.0.0.0"),
-            "port": int(os.getenv("SERVER_PORT", "8080")),
-            "log_level": os.getenv("LOG_LEVEL", "INFO"),
-            "version": os.getenv("SYSTEM_VERSION", "1.0.0"),
-            "name": os.getenv("SYSTEM_NAME", "touchless-interaction")
-        },
-        
-        # MediaPipe Configuration
-        "mediapipe": {
-            "min_detection_confidence": float(os.getenv("MP_MIN_DETECTION_CONFIDENCE", "0.5")),
-            "min_tracking_confidence": float(os.getenv("MP_MIN_TRACKING_CONFIDENCE", "0.5")),
-            "model_complexity": int(os.getenv("MP_MODEL_COMPLEXITY", "0")),
-            "max_num_hands": int(os.getenv("MP_MAX_NUM_HANDS", "1"))
-        },
-        
-        # Gesture Configuration
-        "gesture": {
-            "pinch_threshold": float(os.getenv("GESTURE_PINCH_THRESHOLD", "0.08")),
-            "cursor_smoothing": float(os.getenv("CURSOR_SMOOTHING_FACTOR", "0.5"))
-        },
-        
-        # System Behavior
-        "system": {
-            "cleanup_interval": int(os.getenv("CLEANUP_INTERVAL_SECONDS", "60"))
-        }
-    }
-    
-    return config
-
-config = load_config()
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -79,6 +35,97 @@ logger = logging.getLogger("touchless-interaction")
 # Global state instead of database
 client_dimensions = {}
 active_connections = weakref.WeakSet()
+
+# Global configuration loaded from secrets
+config = {}
+
+def load_secrets():
+    """
+    Load secrets from Docker secrets or environment variables
+    Returns a configuration dictionary
+    """
+    logger.info("Loading configuration from secrets")
+    secrets = {}
+    
+    # List of secrets to load
+    secret_names = [
+        "hand_detection_confidence",
+        "hand_tracking_confidence", 
+        "model_complexity",
+        "max_num_hands",
+        "feature_gesture_pinch_enabled",
+        "feature_gesture_point_enabled",
+        "experiment_name",
+        "experiment_version"
+    ]
+    
+    # Docker secrets are mounted at /run/secrets/SECRET_NAME
+    for secret_name in secret_names:
+        # Try to load from Docker secret
+        secret_path = f"/run/secrets/{secret_name}"
+        env_var_name = secret_name.upper()
+        
+        if os.path.exists(secret_path):
+            try:
+                with open(secret_path, 'r') as secret_file:
+                    value = secret_file.read().strip()
+                    logger.info(f"Loaded secret {secret_name} from Docker secrets")
+                    secrets[secret_name] = value
+            except Exception as e:
+                logger.error(f"Error reading secret {secret_name}: {e}")
+                # Fallback to environment variable
+                secrets[secret_name] = os.environ.get(env_var_name)
+        else:
+            # If secret doesn't exist, try environment variable
+            secrets[secret_name] = os.environ.get(env_var_name)
+            
+            # If still not found, use default values
+            if secrets[secret_name] is None:
+                logger.warning(f"Secret {secret_name} not found, using default value")
+                # Default values
+                if secret_name == "hand_detection_confidence":
+                    secrets[secret_name] = "0.5"
+                elif secret_name == "hand_tracking_confidence":
+                    secrets[secret_name] = "0.5"
+                elif secret_name == "model_complexity":
+                    secrets[secret_name] = "0"
+                elif secret_name == "max_num_hands":
+                    secrets[secret_name] = "1"
+                elif secret_name == "feature_gesture_pinch_enabled":
+                    secrets[secret_name] = "true"
+                elif secret_name == "feature_gesture_point_enabled":
+                    secrets[secret_name] = "false"
+                elif secret_name == "experiment_name":
+                    secrets[secret_name] = "touchless_default"
+                elif secret_name == "experiment_version":
+                    secrets[secret_name] = "1.0.0"
+    
+    # Convert types as needed
+    try:
+        secrets["hand_detection_confidence"] = float(secrets["hand_detection_confidence"])
+        secrets["hand_tracking_confidence"] = float(secrets["hand_tracking_confidence"])
+        secrets["model_complexity"] = int(secrets["model_complexity"])
+        secrets["max_num_hands"] = int(secrets["max_num_hands"])
+        secrets["feature_gesture_pinch_enabled"] = secrets["feature_gesture_pinch_enabled"].lower() == "true"
+        secrets["feature_gesture_point_enabled"] = secrets["feature_gesture_point_enabled"].lower() == "true"
+    except (ValueError, TypeError) as e:
+        logger.error(f"Error converting secret values: {e}")
+        # Provide fallback values if conversion fails
+        if "hand_detection_confidence" not in secrets or not isinstance(secrets["hand_detection_confidence"], float):
+            secrets["hand_detection_confidence"] = 0.5
+        if "hand_tracking_confidence" not in secrets or not isinstance(secrets["hand_tracking_confidence"], float):
+            secrets["hand_tracking_confidence"] = 0.5
+        if "model_complexity" not in secrets or not isinstance(secrets["model_complexity"], int):
+            secrets["model_complexity"] = 0
+        if "max_num_hands" not in secrets or not isinstance(secrets["max_num_hands"], int):
+            secrets["max_num_hands"] = 1
+        if "feature_gesture_pinch_enabled" not in secrets or not isinstance(secrets["feature_gesture_pinch_enabled"], bool):
+            secrets["feature_gesture_pinch_enabled"] = True
+        if "feature_gesture_point_enabled" not in secrets or not isinstance(secrets["feature_gesture_point_enabled"], bool):
+            secrets["feature_gesture_point_enabled"] = False
+    
+    logger.info(f"Configuration loaded successfully: experiment {secrets['experiment_name']} v{secrets['experiment_version']}")
+    return secrets
 
 
 class VideoProcessingService:
@@ -129,16 +176,18 @@ class HandDetectionService:
     - Filtering and smoothing detection results
     """
     
-    def __init__(self):
+    def __init__(self, config):
         """Initialize the Hand Detection Service with MediaPipe"""
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
+        
+        # Use configuration from secrets
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
-            max_num_hands=1,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-            model_complexity=0
+            max_num_hands=config["max_num_hands"],
+            min_detection_confidence=config["hand_detection_confidence"],
+            min_tracking_confidence=config["hand_tracking_confidence"],
+            model_complexity=config["model_complexity"]
         )
         self.start_time = time.time()
         self.detection_count = 0
@@ -155,7 +204,13 @@ class HandDetectionService:
             "status": "online",
             "detectionRate": f"{detection_rate:.2f}%",
             "framesProcessed": self.frame_count,
-            "uptime": time.time() - self.start_time
+            "uptime": time.time() - self.start_time,
+            "config": {
+                "maxNumHands": config["max_num_hands"],
+                "detectionConfidence": config["hand_detection_confidence"],
+                "trackingConfidence": config["hand_tracking_confidence"],
+                "modelComplexity": config["model_complexity"]
+            }
         }
         
     def detect_hands(self, frame):
@@ -181,29 +236,42 @@ class GestureRecognitionService:
     - Mapping recognized gestures to system commands
     """
     
-    def __init__(self):
+    def __init__(self, config):
         """Initialize the Gesture Recognition Service"""
         self.start_time = time.time()
         self.gesture_counts = {
             "pinch": 0,
             "point": 0
         }
+        # Feature flags from configuration
+        self.pinch_enabled = config["feature_gesture_pinch_enabled"]
+        self.point_enabled = config["feature_gesture_point_enabled"]
         
     def get_status(self):
         """Get current service status"""
+        supported_gestures = []
+        if self.pinch_enabled:
+            supported_gestures.append("pinch")
+        if self.point_enabled:
+            supported_gestures.append("point")
+            
         return {
             "service": "gesture-recognition",
             "status": "online",
-            "supportedGestures": ["pinch", "point"],
+            "supportedGestures": supported_gestures,
             "gesturesCounted": self.gesture_counts,
-            "uptime": time.time() - self.start_time
+            "uptime": time.time() - self.start_time,
+            "experimentInfo": {
+                "name": config["experiment_name"],
+                "version": config["experiment_version"]
+            }
         }
     
     def detect_pinch(self, landmarks):
         """
         Detect pinch gesture between thumb and ring finger
         """
-        if not landmarks or len(landmarks) < 21:
+        if not landmarks or len(landmarks) < 21 or not self.pinch_enabled:
             return False
             
         thumb_tip = landmarks[4]
@@ -224,9 +292,9 @@ class GestureRecognitionService:
         
     def detect_point(self, landmarks):
         """
-        Pending
+        Pending implementation
         """
-        if not landmarks or len(landmarks) < 21:
+        if not landmarks or len(landmarks) < 21 or not self.point_enabled:
             return False
             
         self.gesture_counts["point"] += 1
@@ -409,12 +477,12 @@ class SystemIntegrationService:
     - Coordinating between services
     """
     
-    def __init__(self):
+    def __init__(self, config):
         """Initialize system integration and all services"""
-        # Initialize all services
+        # Initialize all services with configuration
         self.video_service = VideoProcessingService()
-        self.hand_detection = HandDetectionService()
-        self.gesture_recognition = GestureRecognitionService()
+        self.hand_detection = HandDetectionService(config)
+        self.gesture_recognition = GestureRecognitionService(config)
         self.cursor_control = CursorControlService()
         self.feedback_service = InteractionFeedbackService()
         
@@ -533,7 +601,11 @@ class SystemIntegrationService:
                 self.feedback_service.get_status()
             ],
             "activeConnections": len(active_connections),
-            "registeredClients": len(client_dimensions)
+            "registeredClients": len(client_dimensions),
+            "experiment": {
+                "name": config["experiment_name"],
+                "version": config["experiment_version"]
+            }
         }
 
 
@@ -551,9 +623,6 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 
-# Initialize the main system integration service
-system_service = SystemIntegrationService()
-
 # API Routes
 
 async def index(request):
@@ -566,6 +635,27 @@ async def status(request):
     return web.Response(
         content_type="application/json",
         text=json.dumps(system_service.get_system_status(), cls=NumpyEncoder)
+    )
+
+async def get_config(request):
+    """Return configuration information (excluding sensitive values)"""
+    # Create a sanitized version of config for public viewing
+    safe_config = {
+        "experimentName": config["experiment_name"],
+        "experimentVersion": config["experiment_version"],
+        "features": {
+            "pinchEnabled": config["feature_gesture_pinch_enabled"],
+            "pointEnabled": config["feature_gesture_point_enabled"]
+        },
+        "modelInfo": {
+            "complexity": config["model_complexity"],
+            "maxHands": config["max_num_hands"]
+        }
+    }
+    
+    return web.Response(
+        content_type="application/json",
+        text=json.dumps(safe_config)
     )
 
 async def cleanup_inactive_connections():
@@ -617,11 +707,18 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8080, help="Port for HTTP server")
     args = parser.parse_args()
 
+    # Load configuration from secrets
+    config = load_secrets()
+
+    # Initialize system with loaded configuration
+    system_service = SystemIntegrationService(config)
+
     app = web.Application()
     
     app.router.add_get("/", index)
     app.router.add_get("/ws", system_service.handle_websocket)
     app.router.add_get("/status", status)
+    app.router.add_get("/config", get_config)
 
     # Background tasks to cleanup stale connections
     app.on_startup.append(start_background_tasks)
@@ -632,6 +729,8 @@ if __name__ == "__main__":
     for _ in range(3):
         system_service.hand_detection.detect_hands(dummy_frame)
     logger.info("MediaPipe hands initialized")
+    
+    logger.info(f"Starting Touchless Interaction System - Experiment: {config['experiment_name']} v{config['experiment_version']}")
     
     web.run_app(
         app, 
