@@ -1,4 +1,3 @@
-
 services:
   touchless-interaction:
     build:
@@ -12,6 +11,30 @@ services:
       - ./:/app
     environment:
       - TZ=UTC
-      - API_KEY=${API_KEY}
-      - APP_SECRET=${APP_SECRET}
+    secrets:
+      - hand_detection_confidence
+      - hand_tracking_confidence
+      - model_complexity
+      - max_num_hands
+      - feature_gesture_pinch_enabled
+      - feature_gesture_point_enabled
+      - experiment_name
+      - experiment_version
 
+secrets:
+  hand_detection_confidence:
+    file: ./secrets/hand_detection_confidence.txt
+  hand_tracking_confidence:
+    file: ./secrets/hand_tracking_confidence.txt
+  model_complexity:
+    file: ./secrets/model_complexity.txt
+  max_num_hands:
+    file: ./secrets/max_num_hands.txt
+  feature_gesture_pinch_enabled:
+    file: ./secrets/feature_gesture_pinch_enabled.txt
+  feature_gesture_point_enabled:
+    file: ./secrets/feature_gesture_point_enabled.txt
+  experiment_name:
+    file: ./secrets/experiment_name.txt
+  experiment_version:
+    file: ./secrets/experiment_version.txt
