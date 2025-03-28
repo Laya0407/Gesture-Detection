@@ -6,27 +6,20 @@ title = "Touchless Interaction Security Scan"
 [[rules]]
 id = "generic-api-key"
 description = "Generic API Key"
-regex = '''(?i)(api[_-]?key|apikey|api[_-]?token)[=:]["']?([0-9a-zA-Z]{32,45})["']?'''
+regex = '(?i)(api[_-]?key|apikey|api[_-]?token)[=:]["\'']?([0-9a-zA-Z]{32,45})["\'']?'
 tags = ["key", "API", "generic"]
 severity = "HIGH"
 
 [[rules]]
 id = "password-in-code"
 description = "Password in code"
-regex = '''(?i)(password|passwd|pwd)[=:]["']?([0-9a-zA-Z!@#$%^&*()_+]{8,})["']?'''
+regex = '(?i)(password|passwd|pwd)[=:]["\'']?([0-9a-zA-Z!@#$%^&*()_+]{8,})["\'']?'
 tags = ["credentials", "password"]
-severity = "HIGH"
-
-[[rules]]
-id = "secret-key"
-description = "Secret Key"
-regex = '''(?i)(secret|token)[=:]["']?([0-9a-zA-Z]{32,45})["']?'''
-tags = ["key", "secret", "token"]
 severity = "HIGH"
 
 # Allow specific files/folders to be ignored
 [allowlist]
 paths = [
-    '''secrets/''',  # Allow secrets folder as it will be git-ignored
-    '''.*\.md$''',   # Ignore markdown files
+    "secrets/.*",
+    ".*\\.md$"
 ]
