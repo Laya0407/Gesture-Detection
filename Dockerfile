@@ -14,15 +14,18 @@ RUN pip install --no-cache-dir \
     aiohttp==3.8.5 \
     numpy==1.24.3 \
     opencv-python==4.8.0.74 \
-    mediapipe
-    dotenv
+    mediapipe \
+    python-dotenv
+
+# Create directory for secrets
+RUN mkdir -p /run/secrets
 
 # Copy application files
-COPY app.py /app/server.py
+COPY app.py /app/app.py
 COPY index.html /app/index.html
 
 # Expose port
 EXPOSE 8080
 
 # Run the application
-CMD ["python", "server.py"]
+CMD ["python", "app.py"]
