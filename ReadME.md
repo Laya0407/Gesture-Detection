@@ -48,3 +48,6 @@ Additionally, the system includes two ML Ops pipelines:
 ```bash
 git clone https://github.com/yourusername/touchless-interaction.git
 cd touchless-interaction
+
+#### Launch with Docker Compose:
+docker-compose up -d
